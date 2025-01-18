@@ -81,7 +81,7 @@ class Collector extends EventEmitter {
 
     /**
      * The reason the collector ended
-     * @type {string|null}
+     * @type {?string}
      * @private
      */
     this._endReason = null;
@@ -332,4 +332,4 @@ class Collector extends EventEmitter {
   /* eslint-enable no-empty-function */
 }
 
-module.exports = Collector;
+exports.Collector = Collector;

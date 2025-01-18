@@ -1,6 +1,6 @@
 'use strict';
 
-const CachedManager = require('./CachedManager');
+const { CachedManager } = require('./CachedManager');
 const { Presence } = require('../structures/Presence');
 
 /**
@@ -38,8 +38,8 @@ class PresenceManager extends CachedManager {
   resolve(presence) {
     const presenceResolvable = super.resolve(presence);
     if (presenceResolvable) return presenceResolvable;
-    const UserResolvable = this.client.users.resolveId(presence);
-    return super.resolve(UserResolvable);
+    const userId = this.client.users.resolveId(presence);
+    return super.cache.get(userId) ?? null;
   }
 
   /**
@@ -50,9 +50,9 @@ class PresenceManager extends CachedManager {
   resolveId(presence) {
     const presenceResolvable = super.resolveId(presence);
     if (presenceResolvable) return presenceResolvable;
-    const userResolvable = this.client.users.resolveId(presence);
-    return this.cache.has(userResolvable) ? userResolvable : null;
+    const userId = this.client.users.resolveId(presence);
+    return this.cache.has(userId) ? userId : null;
   }
 }
 
-module.exports = PresenceManager;
+exports.PresenceManager = PresenceManager;

@@ -1,11 +1,12 @@
 'use strict';
 
+const { roleMention } = require('@discordjs/formatters');
 const { DiscordSnowflake } = require('@sapphire/snowflake');
 const { PermissionFlagsBits } = require('discord-api-types/v10');
-const Base = require('./Base');
+const { Base } = require('./Base');
 const { DiscordjsError, ErrorCodes } = require('../errors');
-const PermissionsBitField = require('../util/PermissionsBitField');
-const RoleFlagsBitField = require('../util/RoleFlagsBitField');
+const { PermissionsBitField } = require('../util/PermissionsBitField');
+const { RoleFlagsBitField } = require('../util/RoleFlagsBitField');
 
 /**
  * Represents a role on Discord.
@@ -452,7 +453,7 @@ class Role extends Base {
    */
   toString() {
     if (this.id === this.guild.id) return '@everyone';
-    return `<@&${this.id}>`;
+    return roleMention(this.id);
   }
 
   toJSON() {

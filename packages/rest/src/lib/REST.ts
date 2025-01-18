@@ -3,11 +3,13 @@ import { DiscordSnowflake } from '@sapphire/snowflake';
 import { AsyncEventEmitter } from '@vladfrangu/async_event_emitter';
 import { filetypeinfo } from 'magic-bytes.js';
 import type { RequestInit, BodyInit, Dispatcher } from 'undici';
+import { v5 as uuidV5 } from 'uuid';
 import { CDN } from './CDN.js';
 import { BurstHandler } from './handlers/BurstHandler.js';
 import { SequentialHandler } from './handlers/SequentialHandler.js';
 import type { IHandler } from './interfaces/Handler.js';
 import {
+	AUTH_UUID_NAMESPACE,
 	BurstHandlerMajorIdKey,
 	DefaultRestOptions,
 	DefaultUserAgent,
@@ -18,20 +20,21 @@ import { RequestMethod } from './utils/types.js';
 import type {
 	RESTOptions,
 	ResponseLike,
-	RestEventsMap,
+	RestEvents,
 	HashData,
 	InternalRequest,
 	RouteLike,
 	RequestHeaders,
 	RouteData,
 	RequestData,
+	AuthData,
 } from './utils/types.js';
 import { isBufferLike, parseResponse } from './utils/utils.js';
 
 /**
  * Represents the class that manages handlers for endpoints
  */
-export class REST extends AsyncEventEmitter<RestEventsMap> {
+export class REST extends AsyncEventEmitter<RestEvents> {
 	/**
 	 * The {@link https://undici.nodejs.org/#/docs/api/Agent | Agent} for all requests
 	 * performed by this manager.
@@ -75,9 +78,8 @@ export class REST extends AsyncEventEmitter<RestEventsMap> {
 
 	public constructor(options: Partial<RESTOptions> = {}) {
 		super();
-		this.cdn = new CDN(options.cdn ?? DefaultRestOptions.cdn);
+		this.cdn = new CDN(options.cdn ?? DefaultRestOptions.cdn, options.mediaProxy ?? DefaultRestOptions.mediaProxy);
 		this.options = { ...DefaultRestOptions, ...options };
-		this.options.offset = Math.max(0, this.options.offset);
 		this.globalRemaining = Math.max(1, this.options.globalRequestsPerSecond);
 		this.agent = options.agent ?? null;
 
@@ -241,9 +243,11 @@ export class REST extends AsyncEventEmitter<RestEventsMap> {
 	public async queueRequest(request: InternalRequest): Promise<ResponseLike> {
 		// Generalize the endpoint to its route data
 		const routeId = REST.generateRouteData(request.fullRoute, request.method);
+		const customAuth = typeof request.auth === 'object' && request.auth.token !== this.#token;
+		const auth = customAuth ? uuidV5((request.auth as AuthData).token, AUTH_UUID_NAMESPACE) : request.auth !== false;
 		// Get the bucket hash for the generic route, or point to a global route otherwise
-		const hash = this.hashes.get(`${request.method}:${routeId.bucketRoute}`) ?? {
-			value: `Global(${request.method}:${routeId.bucketRoute})`,
+		const hash = this.hashes.get(`${request.method}:${routeId.bucketRoute}${customAuth ? `:${auth}` : ''}`) ?? {
+			value: `Global(${request.method}:${routeId.bucketRoute}${customAuth ? `:${auth}` : ''})`,
 			lastAccess: -1,
 		};
 
@@ -259,7 +263,7 @@ export class REST extends AsyncEventEmitter<RestEventsMap> {
 		return handler.queueRequest(routeId, url, fetchOptions, {
 			body: request.body,
 			files: request.files,
-			auth: request.auth !== false,
+			auth,
 			signal: request.signal,
 		});
 	}
@@ -309,12 +313,16 @@ export class REST extends AsyncEventEmitter<RestEventsMap> {
 
 		// If this request requires authorization (allowing non-"authorized" requests for webhooks)
 		if (request.auth !== false) {
-			// If we haven't received a token, throw an error
-			if (!this.#token) {
-				throw new Error('Expected token to be set for this request, but none was present');
-			}
+			if (typeof request.auth === 'object') {
+				headers.Authorization = `${request.auth.prefix ?? this.options.authPrefix} ${request.auth.token}`;
+			} else {
+				// If we haven't received a token, throw an error
+				if (!this.#token) {
+					throw new Error('Expected token to be set for this request, but none was present');
+				}
 
-			headers.Authorization = `${request.authPrefix ?? this.options.authPrefix} ${this.#token}`;
+				headers.Authorization = `${this.options.authPrefix} ${this.#token}`;
+			}
 		}
 
 		// If a reason was set, set its appropriate header
@@ -434,16 +442,20 @@ export class REST extends AsyncEventEmitter<RestEventsMap> {
 			};
 		}
 
-		const majorIdMatch = /^\/(?:channels|guilds|webhooks)\/(\d{17,19})/.exec(endpoint);
+		const majorIdMatch = /(?:^\/webhooks\/(\d{17,19}\/[^/?]+))|(?:^\/(?:channels|guilds|webhooks)\/(\d{17,19}))/.exec(
+			endpoint,
+		);
 
-		// Get the major id for this route - global otherwise
-		const majorId = majorIdMatch?.[1] ?? 'global';
+		// Get the major id or id + token for this route - global otherwise
+		const majorId = majorIdMatch?.[2] ?? majorIdMatch?.[1] ?? 'global';
 
 		const baseRoute = endpoint
 			// Strip out all ids
 			.replaceAll(/\d{17,19}/g, ':id')
 			// Strip out reaction as they fall under the same bucket
-			.replace(/\/reactions\/(.*)/, '/reactions/:reaction');
+			.replace(/\/reactions\/(.*)/, '/reactions/:reaction')
+			// Strip out webhook tokens
+			.replace(/\/webhooks\/:id\/[^/?]+/, '/webhooks/:id/:token');
 
 		let exceptions = '';
 

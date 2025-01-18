@@ -6,7 +6,7 @@ import { URL } from 'node:url';
 import glob from 'fast-glob';
 import picocolors from 'picocolors';
 import type { PackageManager } from './helpers/packageManager.js';
-import { install } from './helpers/packageManager.js';
+import { install, isNodePackageManager } from './helpers/packageManager.js';
 import { GUIDE_URL } from './util/constants.js';
 
 interface Options {
@@ -58,16 +58,18 @@ export async function createDiscordBot({ directory, installPackages, typescript,
 
 		if (typescript) {
 			await cp(
-				new URL('../template/Bun/Typescript/tsconfig.eslint.json', import.meta.url),
+				new URL('../template/Bun/TypeScript/tsconfig.eslint.json', import.meta.url),
 				`${root}/tsconfig.eslint.json`,
 			);
-			await cp(new URL('../template/Bun/Typescript/tsconfig.json', import.meta.url), `${root}/tsconfig.json`);
+			await cp(new URL('../template/Bun/TypeScript/tsconfig.json', import.meta.url), `${root}/tsconfig.json`);
 		}
 	}
 
 	process.chdir(root);
 
-	const newVSCodeSettings = await readFile('./.vscode/settings.json', { encoding: 'utf8' }).then((str) => {
+	const newVSCodeSettings = await readFile('./.vscode/settings.json', {
+		encoding: 'utf8',
+	}).then((str) => {
 		let newStr = str.replace('[REPLACE_ME]', deno || bun ? 'auto' : packageManager);
 		if (deno) {
 			// @ts-expect-error: This is fine
@@ -81,15 +83,20 @@ export async function createDiscordBot({ directory, installPackages, typescript,
 	const globStream = glob.stream('./src/**/*.ts');
 	for await (const file of globStream) {
 		const newData = await readFile(file, { encoding: 'utf8' }).then((str) =>
-			str.replaceAll('[REPLACE_IMPORT_EXT]', typescript ? 'ts' : 'js'),
+			str.replaceAll('[REPLACE_IMPORT_EXT]', typescript && !isNodePackageManager(packageManager) ? 'ts' : 'js'),
 		);
 		await writeFile(file, newData);
 	}
 
 	if (!deno) {
-		const newPackageJSON = await readFile('./package.json', { encoding: 'utf8' }).then((str) => {
+		const newPackageJSON = await readFile('./package.json', {
+			encoding: 'utf8',
+		}).then((str) => {
 			let newStr = str.replace('[REPLACE_ME]', directoryName);
-			newStr = newStr.replaceAll('[REPLACE_IMPORT_EXT]', typescript ? 'ts' : 'js');
+			newStr = newStr.replaceAll(
+				'[REPLACE_IMPORT_EXT]',
+				typescript && !isNodePackageManager(packageManager) ? 'ts' : 'js',
+			);
 			return newStr;
 		});
 		await writeFile('./package.json', newPackageJSON);

@@ -2,7 +2,7 @@
 
 const { Collection } = require('@discordjs/collection');
 const { ApplicationCommandPermissionType, RESTJSONErrorCodes, Routes } = require('discord-api-types/v10');
-const BaseManager = require('./BaseManager');
+const { BaseManager } = require('./BaseManager');
 const { DiscordjsError, DiscordjsTypeError, ErrorCodes } = require('../errors');
 
 /**
@@ -356,7 +356,6 @@ class ApplicationCommandPermissionsManager extends BaseManager {
    * @param {HasApplicationCommandPermissionsOptions} options Options used to check permissions
    * @returns {Promise<boolean>}
    * @example
-   * // Check whether a user has permission to use a command
    * guild.commands.permissions.has({ command: '123456789012345678', permissionId: '876543210123456789' })
    *  .then(console.log)
    *  .catch(console.error);
@@ -420,7 +419,7 @@ class ApplicationCommandPermissionsManager extends BaseManager {
   }
 }
 
-module.exports = ApplicationCommandPermissionsManager;
+exports.ApplicationCommandPermissionsManager = ApplicationCommandPermissionsManager;
 
 /* eslint-disable max-len */
 /**

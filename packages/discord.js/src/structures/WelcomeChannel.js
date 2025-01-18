@@ -1,6 +1,6 @@
 'use strict';
 
-const Base = require('./Base');
+const { Base } = require('./Base');
 const { Emoji } = require('./Emoji');
 
 /**
@@ -42,7 +42,7 @@ class WelcomeChannel extends Base {
 
   /**
    * The channel of this welcome channel
-   * @type {?(TextChannel|NewsChannel|ForumChannel|MediaChannel)}
+   * @type {?(TextChannel|AnnouncementChannel|ForumChannel|MediaChannel)}
    */
   get channel() {
     return this.client.channels.resolve(this.channelId);
@@ -53,8 +53,8 @@ class WelcomeChannel extends Base {
    * @type {GuildEmoji|Emoji}
    */
   get emoji() {
-    return this.client.emojis.resolve(this._emoji.id) ?? new Emoji(this.client, this._emoji);
+    return this.client.emojis.cache.get(this._emoji.id) ?? new Emoji(this.client, this._emoji);
   }
 }
 
-module.exports = WelcomeChannel;
+exports.WelcomeChannel = WelcomeChannel;

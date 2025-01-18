@@ -16,7 +16,7 @@
 
 ## Installation
 
-**Node.js 18.13.0 or newer is required.**
+**Node.js 20 or newer is required.**
 
 ```sh
 npm install @discordjs/next
