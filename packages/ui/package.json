@@ -80,11 +80,11 @@
 		"eslint-formatter-pretty": "^7.1.0",
 		"prettier": "~3.8.1",
 		"prop-types": "^15.8.1",
-		"storybook": "^10.5.10",
+		"storybook": "^10.6.2",
 		"turbo": "^2.10.12",
 		"typescript": "~5.9.3",
 		"unocss": "^66.9.2",
-		"vite": "^8.2.2",
+		"vite": "^8.2.4",
 		"vite-plugin-dts": "^5.1.0"
 	},
 	"engines": {
